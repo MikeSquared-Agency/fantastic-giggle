@@ -1,0 +1,8 @@
+/.venv/
+/deps/
+/voice_dispatch/__pycache__/
+/voice_dispatch/*.pyc
+/voice_dispatch/build/
+/voice_dispatch/dist/
+/voice_dispatch/models/
+/voice_dispatch/*.spec

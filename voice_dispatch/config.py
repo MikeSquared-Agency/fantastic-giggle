@@ -7,8 +7,20 @@ if getattr(sys, "frozen", False):
 else:
     BASE_DIR = Path(__file__).parent
 
-FUNCTIONGEMMA_DIR = str(BASE_DIR / "models" / "functiongemma-270m-it")
+def _resolve_model_dir(model_dir: Path) -> Path:
+    if (model_dir / "config.json").exists():
+        return model_dir
+
+    nested_dir = model_dir / model_dir.name
+    if (nested_dir / "config.json").exists():
+        return nested_dir
+
+    return model_dir
+
+
+FUNCTIONGEMMA_DIR = str(_resolve_model_dir(BASE_DIR / "models" / "functiongemma-270m-it"))
 WHISPER_DIR       = str(BASE_DIR / "models" / "whisper" / "tiny.en")
+ICON_PATH         = str(BASE_DIR / "assets" / "icon.ico")
 
 TRIGGER_HOTKEY    = "win+shift+d"
 SAMPLE_RATE       = 16000

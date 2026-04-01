@@ -18,6 +18,15 @@ _silence_count = 0
 _in_speech     = False
 
 
+def has_input_device() -> bool:
+    try:
+        devices = sd.query_devices()
+    except Exception:
+        return False
+
+    return any(device.get("max_input_channels", 0) > 0 for device in devices)
+
+
 def _load():
     global _model, _vad
     _model = WhisperModel(
@@ -30,28 +39,46 @@ def _load():
 
 
 def start(on_utterance_fn):
-    global _callback, _running, _stream
+    global _callback, _running, _stream, _speech_frames, _silence_count, _in_speech
+    if not has_input_device():
+        raise RuntimeError("No audio input device was found.")
+
     if _model is None:
         _load()
+
     _callback = on_utterance_fn
     _running  = True
-    _stream   = sd.InputStream(
-        samplerate=SAMPLE_RATE,
-        channels=1,
-        dtype="float32",
-        blocksize=FRAME_SAMPLES,
-        callback=_audio_callback
-    )
-    _stream.start()
+    _speech_frames = []
+    _silence_count = 0
+    _in_speech = False
+
+    try:
+        _stream = sd.InputStream(
+            samplerate=SAMPLE_RATE,
+            channels=1,
+            dtype="float32",
+            blocksize=FRAME_SAMPLES,
+            callback=_audio_callback
+        )
+        _stream.start()
+    except Exception:
+        _running = False
+        if _stream:
+            _stream.close()
+            _stream = None
+        raise
 
 
 def stop():
-    global _running, _stream
+    global _running, _stream, _speech_frames, _silence_count, _in_speech
     _running = False
     if _stream:
         _stream.stop()
         _stream.close()
         _stream = None
+    _speech_frames = []
+    _silence_count = 0
+    _in_speech = False
 
 
 def _audio_callback(indata, frames, time, status):

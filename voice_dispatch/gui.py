@@ -10,9 +10,9 @@ class VoiceBar:
     RED    = "#f38ba8"
     FONT   = ("Segoe UI", 13)
 
-    def __init__(self, on_close):
+    def __init__(self, on_close, master=None):
         self.on_close = on_close
-        self.root     = tk.Tk()
+        self.root     = tk.Toplevel(master) if master is not None else tk.Tk()
         self._build()
         self._position()
 
@@ -55,37 +55,46 @@ class VoiceBar:
 
     # -- state setters (thread-safe via root.after) --
 
+    def _safe_after(self, callback):
+        try:
+            self.root.after(0, callback)
+        except tk.TclError:
+            pass
+
     def set_listening(self):
-        self.root.after(0, lambda: [
+        self._safe_after(lambda: [
             self.icon.configure(text="\U0001f399", fg=self.ACCENT),
             self.label.configure(text="Listening...", fg=self.FG)
         ])
 
     def set_transcribing(self, text: str):
         display = text[:60] + "..." if len(text) > 60 else text
-        self.root.after(0, lambda: [
+        self._safe_after(lambda: [
             self.icon.configure(text="\u231b", fg=self.FG),
             self.label.configure(text=display, fg=self.FG)
         ])
 
     def set_typed(self, text: str):
         display = f'Typed: "{text[:46]}"' if len(text) > 46 else f'Typed: "{text}"'
-        self.root.after(0, lambda: [
+        self._safe_after(lambda: [
             self.icon.configure(text="\u2713", fg=self.GREEN),
             self.label.configure(text=display, fg=self.GREEN)
         ])
-        self.root.after(1500, self.set_listening)
+        self._safe_after(lambda: self.root.after(1500, self.set_listening))
 
     def set_command(self, name: str, shortcut: str):
-        self.root.after(0, lambda: [
+        self._safe_after(lambda: [
             self.icon.configure(text="\u26a1", fg=self.YELLOW),
             self.label.configure(text=f"Command: {name}  \u2192  {shortcut.upper()}", fg=self.YELLOW)
         ])
-        self.root.after(1500, self.set_listening)
+        self._safe_after(lambda: self.root.after(1500, self.set_listening))
 
     def close(self):
         self.on_close()
-        self.root.destroy()
+        try:
+            self.root.destroy()
+        except tk.TclError:
+            pass
 
     def run(self):
         self.root.mainloop()
