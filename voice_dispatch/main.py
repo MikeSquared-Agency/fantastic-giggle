@@ -12,6 +12,7 @@ from config import TRIGGER_HOTKEY
 from gui import VoiceBar
 from resolver import resolve, SHORTCUT_DEFS
 from executor import fire
+from refiner import refine
 import stt
 
 bar: VoiceBar | None = None
@@ -99,9 +100,10 @@ def on_utterance(transcript: str):
     if not transcript or active_bar is None:
         return
 
+    mode = active_bar.mode
     active_bar.set_transcribing(transcript)
 
-    result = resolve(transcript)
+    result = resolve(transcript) if mode == "command_control" else None
 
     try:
         if last_hwnd:
@@ -113,12 +115,20 @@ def on_utterance(transcript: str):
     if active_bar is None:
         return
 
-    if result:
-        fire(result)
-        active_bar.set_command(command_name(result), result)
-    else:
+    if mode == "draft_drop":
         inject_text(transcript)
         active_bar.set_typed(transcript)
+    elif mode == "polish_prose":
+        polished = refine(transcript)
+        inject_text(polished)
+        active_bar.set_refined(polished)
+    else:  # command_control
+        if result:
+            fire(result)
+            active_bar.set_command(command_name(result), result)
+        else:
+            inject_text(transcript)
+            active_bar.set_typed(transcript)
 
 
 def start_stt(local_bar: VoiceBar):
@@ -153,6 +163,11 @@ def open_bar():
     local_bar.root.deiconify()
     local_bar.root.lift()
     local_bar.root.update()
+    try:
+        local_bar.root.focus_force()
+        local_bar.root.after(10, local_bar.root.focus_force)
+    except Exception:
+        pass
 
     with bar_lock:
         bar = local_bar
