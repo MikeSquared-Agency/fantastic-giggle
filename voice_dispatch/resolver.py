@@ -1,3 +1,9 @@
+import sys
+from pathlib import Path
+_DEPS = Path(__file__).parent.parent / "deps"
+if _DEPS.exists() and str(_DEPS) not in sys.path:
+    sys.path.insert(0, str(_DEPS))
+
 from transformers import AutoProcessor, AutoModelForCausalLM
 from config import FUNCTIONGEMMA_DIR
 

@@ -1,3 +1,9 @@
+import sys
+from pathlib import Path
+_DEPS = Path(__file__).parent.parent / "deps"
+if _DEPS.exists() and str(_DEPS) not in sys.path:
+    sys.path.insert(0, str(_DEPS))
+
 import threading
 import numpy as np
 import sounddevice as sd
@@ -119,5 +125,6 @@ def _transcribe(frames: list[bytes]):
         beam_size=1
     )
     text = " ".join(s.text.strip() for s in segments).strip()
+    print(f"[stt] transcribed: {text!r}")
     if text and _callback:
         _callback(text)

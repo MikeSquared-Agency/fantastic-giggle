@@ -1,3 +1,11 @@
+import sys
+from pathlib import Path
+
+# Ensure bundled deps are first on the path regardless of how the script is launched
+_DEPS = Path(__file__).parent.parent / "deps"
+if _DEPS.exists() and str(_DEPS) not in sys.path:
+    sys.path.insert(0, str(_DEPS))
+
 import ctypes
 import queue
 import threading
@@ -52,11 +60,18 @@ def show_error(message: str):
 
 
 def inject_text(text: str):
+    print(f"[inject] attempting: {text!r}")
     try:
         kb.write(text, delay=0.02)
-    except Exception:
-        pyperclip.copy(text)
-        kb.send("ctrl+v")
+        print("[inject] kb.write OK")
+    except Exception as e:
+        print(f"[inject] kb.write failed ({e}), trying clipboard")
+        try:
+            pyperclip.copy(text)
+            kb.send("ctrl+v")
+            print("[inject] clipboard OK")
+        except Exception as e2:
+            print(f"[inject] clipboard also failed: {e2}")
 
 
 def command_name(shortcut: str) -> str:
@@ -96,11 +111,14 @@ def parse_hotkey(hotkey: str) -> tuple[int, int]:
 def on_utterance(transcript: str):
     global last_hwnd
     transcript = transcript.strip()
+    print(f"[utterance] got: {transcript!r}, hwnd={last_hwnd}")
     active_bar = bar
     if not transcript or active_bar is None:
+        print(f"[utterance] early exit: transcript={bool(transcript)}, bar={active_bar is not None}")
         return
 
     mode = active_bar.mode
+    print(f"[utterance] mode={mode}")
     active_bar.set_transcribing(transcript)
 
     result = resolve(transcript) if mode == "command_control" else None
