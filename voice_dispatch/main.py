@@ -1,6 +1,7 @@
 import ctypes
 import queue
 import threading
+import time
 import tkinter as tk
 from ctypes import wintypes
 from tkinter import messagebox
@@ -10,9 +11,8 @@ import win32gui
 import pyperclip
 from config import TRIGGER_HOTKEY
 from gui import VoiceBar
-from resolver import resolve, SHORTCUT_DEFS
+from resolver import resolve, polish, SHORTCUT_DEFS
 from executor import fire
-from refiner import refine
 import stt
 
 bar: VoiceBar | None = None
@@ -111,6 +111,8 @@ def on_utterance(transcript: str):
     except Exception:
         pass
 
+    time.sleep(0.15)  # let focus transfer before injecting keystrokes
+
     active_bar = bar
     if active_bar is None:
         return
@@ -119,7 +121,7 @@ def on_utterance(transcript: str):
         inject_text(transcript)
         active_bar.set_typed(transcript)
     elif mode == "polish_prose":
-        polished = refine(transcript)
+        polished = polish(transcript)
         inject_text(polished)
         active_bar.set_refined(polished)
     else:  # command_control

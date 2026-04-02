@@ -61,6 +61,13 @@ SYSTEM_PROMPT = (
     "When in doubt, do not call a function."
 )
 
+POLISH_SYSTEM_PROMPT = (
+    "Clean up the following spoken transcript. "
+    "Strip filler words such as um, uh, like, you know, basically, sort of, kind of, I mean. "
+    "Fix capitalisation and add appropriate punctuation. "
+    "Return only the cleaned text, nothing else."
+)
+
 
 def parse_response(response: str) -> str | None:
     if "<start_function_call>" not in response:
@@ -70,6 +77,37 @@ def parse_response(response: str) -> str | None:
         if func_name in first_call:
             return shortcut
     return None
+
+
+def polish(transcript: str) -> str:
+    """Run the transcript through FunctionGemma for prose cleanup.
+
+    Falls back to the rule-based refiner if the model call fails.
+    """
+    messages = [
+        {"role": "developer", "content": POLISH_SYSTEM_PROMPT},
+        {"role": "user",      "content": transcript},
+    ]
+    try:
+        inputs = processor.apply_chat_template(
+            messages,
+            add_generation_prompt=True,
+            return_dict=True,
+            return_tensors="pt",
+        ).to(model.device)
+        outputs = model.generate(
+            **inputs,
+            pad_token_id=processor.eos_token_id,
+            max_new_tokens=128,
+        )
+        result = processor.decode(
+            outputs[0][inputs["input_ids"].shape[-1]:],
+            skip_special_tokens=True,
+        ).strip()
+        return result if result else transcript
+    except Exception:
+        from refiner import refine
+        return refine(transcript)
 
 
 def resolve(transcript: str) -> str | None:
